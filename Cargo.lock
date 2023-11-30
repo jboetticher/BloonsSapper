@@ -487,6 +487,7 @@ dependencies = [
  "egui",
  "inputbot",
  "rust_ocr",
+ "winapi",
 ]
 
 [[package]]
