@@ -1,0 +1,10 @@
+[package]
+name = "bloons_sapper"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+eframe = "0.24.0"
+egui = "0.24.0"
+inputbot = { git = "https://github.com/obv-mikhail/InputBot", branch = "develop" }
+rust_ocr = "0.1.5"
