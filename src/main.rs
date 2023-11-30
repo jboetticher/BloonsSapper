@@ -2,13 +2,18 @@
 
 mod monkey;
 
-use std::{
-    sync::{Arc, Mutex},
-    thread, time, ptr
-};
-use winapi::um::winuser::{FindWindowA, SetForegroundWindow};
+use dirs;
 use inputbot::{KeybdKey, MouseButton, MouseCursor};
 use monkey::*;
+use rust_ocr::png_to_text;
+use screenshots::Screen;
+use std::{
+    path::PathBuf,
+    ptr,
+    sync::{Arc, Mutex},
+    thread, time,
+};
+use winapi::um::winuser::{FindWindowA, SetForegroundWindow};
 
 fn main() -> eframe::Result<()> {
     println!("Starting the Bloons Sapper BOT!");
@@ -87,13 +92,44 @@ impl SapperApp {
                 left_click(1290, 540);
                 thread::sleep(time::Duration::from_secs(1));
                 left_click(955, 735);
-                thread::sleep(time::Duration::from_secs(10));
+                thread::sleep(time::Duration::from_secs(8));
 
                 // endregion
-            
+
                 spawn_monkey(485, 463, Monkeys::Hero);
+
+                // Start game on double speed
+                KeybdKey::SpaceKey.press();
+                KeybdKey::SpaceKey.release();
+                thread::sleep(time::Duration::from_millis(500));
+                KeybdKey::SpaceKey.press();
+                KeybdKey::SpaceKey.release();
+
+                // Take a screenshot
+                let screen = Screen::all().unwrap();
+                Self::read_data(&screen[0]);
+
+                thread::sleep(time::Duration::from_secs(10));
             }
         });
+    }
+
+    fn read_data(screen: &Screen) {
+        // Capture the screen
+        let screenshot = screen.capture_area(334, 13, 225, 64).unwrap();
+
+        // Get the desktop directory
+        let desktop_dir = dirs::desktop_dir().unwrap();
+
+        // Specify the path for saving the screenshot
+        let screenshot_path = desktop_dir.join("bloons_ocr.png");
+
+        // Save the screenshot to the desktop
+        let _ = screenshot.save(&screenshot_path);
+
+        // OCR it
+        let text = png_to_text(screenshot_path).unwrap();
+        println!("{}", text);
     }
 }
 
