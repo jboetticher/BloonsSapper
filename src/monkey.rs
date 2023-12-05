@@ -6,6 +6,17 @@ pub struct MonkeyInstance {
     y: i32,
 }
 
+impl MonkeyInstance {
+    pub fn new() -> Self {
+        MonkeyInstance { x: 0, y: 0 }
+    }
+
+    pub fn replace(&mut self, monkey: MonkeyInstance) {
+        self.x = monkey.x;
+        self.y = monkey.y;
+    }
+}
+
 pub enum Monkeys {
     Hero,
     Ace,
@@ -48,10 +59,10 @@ pub fn upgrade_monkey(m: &MonkeyInstance, path: Vec<UpgradePath>) {
 
         key.press();
         key.release();
-        thread::sleep(time::Duration::from_millis(50));
+        thread::sleep(time::Duration::from_millis(100));
     }
 
-    left_click(1, 1);
+    left_click(60, 500);
 }
 
 pub fn left_click(x: i32, y: i32) {
