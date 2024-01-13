@@ -39,6 +39,7 @@ fn main() -> eframe::Result<()> {
 pub struct SapperApp {
     enabled: Arc<Mutex<bool>>,
     current_money: Arc<Mutex<i32>>,
+    subsequent_ocr_errors: Arc<Mutex<i32>>,
     upgrade_stage: Arc<Mutex<i32>>,
 }
 
@@ -50,6 +51,7 @@ impl SapperApp {
 
         SapperApp {
             current_money: Arc::new(Mutex::new(0)),
+            subsequent_ocr_errors: Arc::new(Mutex::new(0)),
             enabled: Arc::new(Mutex::new(false)),
             upgrade_stage: Arc::new(Mutex::new(0)),
         }
@@ -61,6 +63,7 @@ impl SapperApp {
         let c_enabled = self.enabled.clone();
         let c_current_money = self.current_money.clone();
         let c_upgrade_stage = self.upgrade_stage.clone();
+        let c_subsequent_ocr_errors = self.subsequent_ocr_errors.clone();
 
         thread::spawn(move || loop {
             if *c_enabled.lock().unwrap() {
@@ -120,9 +123,18 @@ impl SapperApp {
                 loop {
                     // Take a screenshot
                     let ocr_money = Self::read_money_data(&screen[0]);
+                    let ocr_errors: i32 = *c_subsequent_ocr_errors.lock().unwrap();
                     println!("Money discovered by OCR: {}", ocr_money);
-                    if ocr_money.abs_diff(money) < 1000 && ocr_money != 0 {
-                        money = ocr_money; // Sometimes OCR is finnicky
+                    if (ocr_money.abs_diff(money) < 1000 || ocr_errors >= 5) && ocr_money != 0 {
+                        // Sometimes OCR is finnicky, hence why we made 1000 the difference bound.
+                        // But if we error too much, then maybe our bound was surpassed. Hence why we have the ocr_errors counter
+                        money = ocr_money;
+                        let ocr_errors_lock = c_subsequent_ocr_errors.lock();
+                        *(ocr_errors_lock.unwrap()) = 0;
+                    } else if ocr_money.abs_diff(money) >= 10_000 && ocr_money != 0 {
+                        // Increase subsequent OCR Errors as a failsafe
+                        let ocr_errors_lock = c_subsequent_ocr_errors.lock();
+                        *(ocr_errors_lock.unwrap()) += 1;
                     } else {
                         thread::sleep(time::Duration::from_secs(1));
                         continue;
@@ -151,18 +163,7 @@ impl SapperApp {
 
                     // Check for victory if it didn't manage to upgrade the last time
                     if *upgrade_level == 7 {
-                        // TODO: fix this or something
                         if Self::check_for_victory(&screen[0]) {
-                            *upgrade_level = 0;
-
-                            // Click on next button
-                            thread::sleep(time::Duration::from_millis(500));
-                            left_click(958, 902);
-
-                            // Click on home button
-                            thread::sleep(time::Duration::from_millis(500));
-                            left_click(725, 845);
-
                             break;
                         }
                     }
@@ -191,7 +192,7 @@ impl SapperApp {
                     thread::sleep(time::Duration::from_secs(8));
                 }
 
-                // region: Continue & Reset Game
+                // region: Continue Game
 
                 // Click on next button
                 thread::sleep(time::Duration::from_millis(500));
@@ -211,10 +212,54 @@ impl SapperApp {
                 KeybdKey::SpaceKey.release();
                 thread::sleep(time::Duration::from_millis(500));
 
+                // endregion
+
+                loop {
+                    // Take a screenshot
+                    let ocr_money = Self::read_money_data(&screen[0]);
+                    money = ocr_money;
+
+                    // Set current_money
+                    let current_money_lock = c_current_money.lock();
+                    *(current_money_lock.unwrap()) = money;
+
+                    // Spawn archmage if you ever get the money
+                    if money > 50000 {
+                        let wizard = spawn_monkey(485, 713, Monkeys::Wizard);
+                        thread::sleep(time::Duration::from_secs(2));
+                        upgrade_monkey(
+                            &wizard,
+                            vec![
+                                UpgradePath::Top,
+                                UpgradePath::Top,
+                                UpgradePath::Top,
+                                UpgradePath::Bottom,
+                                UpgradePath::Bottom,
+                                UpgradePath::Top,
+                                UpgradePath::Top,
+                            ],
+                        );
+                        break;
+                    }
+
+                    // Break when lose
+                    if Self::check_for_victory(&screen[0]) {
+                        break;
+                    }
+
+                    thread::sleep(time::Duration::from_secs(5));
+                }
+
+                // region: Reset Game
+
                 // Check for defeat NEXT button
                 loop {
                     if Self::check_for_victory(&screen[0]) {
                         break;
+                    }
+                    // Or just click on screen to avoid instamonkey
+                    else {
+                        left_click(150, 150);
                     }
                     thread::sleep(time::Duration::from_secs(8));
                 }
@@ -402,6 +447,14 @@ impl eframe::App for SapperApp {
             let money_ptr = self.current_money.clone();
             let money: i32 = *(money_ptr.lock()).unwrap();
             ui.label(format!("OCR Money: {}", money));
+
+            let ocr_err_ptr = self.subsequent_ocr_errors.clone();
+            let ocr_errs: i32 = *(ocr_err_ptr.lock()).unwrap();
+            ui.label(format!("Subsequent OCR Errors: {}", ocr_errs));
+
+            let upgrade_ptr = self.upgrade_stage.clone();
+            let upgrades: i32 = *(upgrade_ptr.lock()).unwrap();
+            ui.label(format!("Upgrade Stage: {}", upgrades));
 
             let c_enabled = self.enabled.clone();
             let lock = c_enabled.lock();

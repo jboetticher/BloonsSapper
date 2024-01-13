@@ -21,7 +21,8 @@ pub enum Monkeys {
     Hero,
     Ace,
     TackShooter,
-    Heli
+    Heli,
+    Wizard
 }
 
 pub enum UpgradePath {
@@ -35,7 +36,8 @@ pub fn spawn_monkey(x: i32, y: i32, m: Monkeys) -> MonkeyInstance {
         Monkeys::Hero => KeybdKey::UKey,
         Monkeys::Ace => KeybdKey::VKey,
         Monkeys::TackShooter => KeybdKey::RKey,
-        Monkeys::Heli => KeybdKey::BKey
+        Monkeys::Heli => KeybdKey::BKey,
+        Monkeys::Wizard => KeybdKey::AKey
     };
 
     key.press();
@@ -59,7 +61,7 @@ pub fn upgrade_monkey(m: &MonkeyInstance, path: Vec<UpgradePath>) {
 
         key.press();
         key.release();
-        thread::sleep(time::Duration::from_millis(100));
+        thread::sleep(time::Duration::from_millis(500));
     }
 
     left_click(60, 500);
